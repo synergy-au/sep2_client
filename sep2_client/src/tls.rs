@@ -10,7 +10,10 @@ use anyhow::{bail, Result};
 use hyper::client::{HttpConnector, ResponseFuture};
 use hyper::{Body, Client, Request};
 use hyper_openssl::HttpsConnector;
-use openssl::ssl::{SslConnector, SslConnectorBuilder, SslFiletype, SslMethod, SslVerifyMode};
+use openssl::ssl::{
+    SslConnector, SslConnectorBuilder, SslFiletype, SslMethod, SslOptions, SslVerifyMode,
+    SslVersion,
+};
 
 #[cfg(feature = "pubsub")]
 use openssl::ssl::{SslAcceptor, SslAcceptorBuilder};
@@ -36,22 +39,45 @@ impl ClientInner {
     }
 }
 
+// MacOS doesn't support the CCM8 cipher suite
+const fn get_cipher_suite() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "ECDHE-ECDSA-AES128-GCM-SHA256@SECLEVEL=0"
+    } else {
+        "ECDHE-ECDSA-AES128-CCM8"
+    }
+}
+
 pub(crate) fn create_client_tls_cfg(
     cert_path: impl AsRef<Path>,
     pk_path: impl AsRef<Path>,
     rootca_path: impl AsRef<Path>,
 ) -> Result<TlsClientConfig> {
     let mut builder = SslConnector::builder(SslMethod::tls_client())?;
-    log::debug!("Setting CipherSuite");
-    builder.set_cipher_list("ECDHE-ECDSA-AES128-CCM8")?;
-    log::debug!("Loading Certificate File");
+
+    // Set security level
+    builder.set_security_level(0);
+
+    // Force TLS 1.2
+    builder.set_min_proto_version(Some(SslVersion::TLS1_2))?;
+    builder.set_max_proto_version(Some(SslVersion::TLS1_2))?;
+
+    // Set SSL options
+    let opts = SslOptions::NO_COMPRESSION | SslOptions::NO_SSLV2 | SslOptions::NO_SSLV3;
+    builder.set_options(opts);
+
+    // Set IEEE 2030.5 compliant cipher
+    let cipher = get_cipher_suite();
+    builder.set_cipher_list(cipher)?;
+
+    // Load certificates
     builder.set_certificate_file(cert_path, SslFiletype::PEM)?;
-    log::debug!("Loading Private Key File");
     builder.set_private_key_file(pk_path, SslFiletype::PEM)?;
-    log::debug!("Loading Certificate Authority File");
     builder.set_ca_file(rootca_path)?;
-    log::debug!("Setting verification mode");
+
+    // Set verification mode
     builder.set_verify(SslVerifyMode::PEER);
+
     Ok(builder)
 }
 
@@ -62,7 +88,17 @@ pub(crate) fn create_client(
     let mut http = HttpConnector::new();
     http.enforce_http(false);
     http.set_keepalive(tcp_keepalive);
-    let https = HttpsConnector::with_connector(http, tls_config).unwrap();
+    let mut https = HttpsConnector::with_connector(http, tls_config).unwrap();
+
+    // Disable hostname verification.
+    // * IEEE 2030.5-2018 does not require hostname verification
+    // (understandably since devices are identified by S/LFDIs derived from
+    // the certificate, rather than DNS).
+    https.set_callback(|ssl, _| {
+        ssl.set_verify_hostname(false);
+        Ok(())
+    });
+
     Client::builder().build::<HTTPSConnector, hyper::Body>(https)
 }
 
