@@ -58,7 +58,7 @@ pub enum SEPResponse {
     /// HTTP 201 w/ Location header value, if it exists - 2030.5-2018 - 5.5.2.4
     Created(Option<String>),
     /// HTTP 204 - 2030.5-2018 - 5.5.2.5
-    NoContent,
+    NoContent(Option<String>),
     /// HTTP 400 - 2030.5-2018 - 5.5.2.9
     BadRequest(Option<Error>),
     /// HTTP 404 - 2030.5-2018 - 5.5.2.11
@@ -80,7 +80,16 @@ impl Display for SEPResponse {
                     }
                 )
             }
-            SEPResponse::NoContent => write!(f, "204 No Content"),
+            SEPResponse::NoContent(loc) => {
+                write!(
+                    f,
+                    "204 Created - Location Header {}",
+                    match loc {
+                        Some(loc) => loc,
+                        None => "None",
+                    }
+                )
+            }
             SEPResponse::BadRequest(e) => match e {
                 Some(e) => write!(f, "400 Bad Request - Error: {}", e),
                 None => write!(f, "400 Bad Request"),
@@ -114,8 +123,14 @@ impl TryFrom<SEPResponse> for hyper::Response<Body> {
                     );
                 }
             }
-            SEPResponse::NoContent => {
+            SEPResponse::NoContent(loc) => {
                 *res.status_mut() = StatusCode::NO_CONTENT;
+                if let Some(loc) = loc {
+                    res.headers_mut().insert(
+                        LOCATION,
+                        loc.parse().context("Failed to set LOCATION header")?,
+                    );
+                }
             }
             SEPResponse::BadRequest(_) => {
                 *res.status_mut() = StatusCode::BAD_REQUEST;
@@ -147,7 +162,14 @@ async fn into_sepresponse(res: hyper::Response<Body>) -> Result<SEPResponse> {
                 .map(|r| r.to_string());
             Ok(SEPResponse::Created(loc))
         }
-        StatusCode::NO_CONTENT => Ok(SEPResponse::NoContent),
+        StatusCode::NO_CONTENT => {
+            let loc = res
+                .headers()
+                .get(LOCATION)
+                .and_then(|h| h.to_str().ok())
+                .map(|r| r.to_string());
+            Ok(SEPResponse::NoContent(loc))
+        }
         StatusCode::BAD_REQUEST => Ok(SEPResponse::BadRequest(
             hyper::body::to_bytes(res.into_body())
                 .await
