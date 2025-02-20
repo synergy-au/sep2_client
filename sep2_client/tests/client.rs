@@ -48,7 +48,7 @@ async fn basic_req() {
     let out = client.post("/edev", &EndDevice::default()).await.unwrap();
     assert!(matches!(out, SEPResponse::Created(_)));
     let out = client.put("/edev/3", &EndDevice::default()).await.unwrap();
-    assert!(matches!(out, SEPResponse::NoContent));
+    assert!(matches!(out, SEPResponse::NoContent(_)));
     client.delete("/edev/3").await.unwrap();
 }
 
