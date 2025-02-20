@@ -252,7 +252,6 @@ type PollQueue = Arc<Mutex<BinaryHeap<PollJob>>>;
 
 /// Represents an IEEE 2030.5 Client connection to a single server
 ///
-/// Can be cloned cheaply as poll tasks, and the underlying `hyper` connection pool are shared between cloned clients.
 #[derive(Clone)]
 pub struct Client {
     addr: Arc<String>,
@@ -287,10 +286,10 @@ impl Client {
             inner: ClientInner::Http(create_http_client(tcp_keepalive)),
             polls: Arc::new(Mutex::new(BinaryHeap::new())),
         };
-        tokio::spawn(
-            out.clone()
-                .poll_task(tickrate.unwrap_or(Self::DEFAULT_TICKRATE)),
-        );
+        // tokio::spawn(
+        //     out.clone()
+        //         .poll_task(tickrate.unwrap_or(Self::DEFAULT_TICKRATE)),
+        // );
         Ok(out)
     }
 
@@ -309,10 +308,10 @@ impl Client {
             inner: ClientInner::Https(create_client(cfg, tcp_keepalive)),
             polls: Arc::new(Mutex::new(BinaryHeap::new())),
         };
-        tokio::spawn(
-            out.clone()
-                .poll_task(tickrate.unwrap_or(Self::DEFAULT_TICKRATE)),
-        );
+        // tokio::spawn(
+        //     out.clone()
+        //         .poll_task(tickrate.unwrap_or(Self::DEFAULT_TICKRATE)),
+        // );
         Ok(out)
     }
 
