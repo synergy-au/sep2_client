@@ -14,7 +14,7 @@ keywords = ["energy", "DER", "20305", "SEP2", "IEEE2030"]
 [dependencies]
 anyhow = "1.0.72"
 async-trait = "0.1.72"
-sep2_common = { git = "https://github.com/synergy-au/sep2_common.git", rev = "18d4ee0", features = [
+sep2_common = { git = "https://github.com/synergy-au/sep2_common.git", rev = "627e8b9", features = [
   "edev",
   "time",
 ] }
@@ -36,7 +36,7 @@ httpdate = "1.0.3"
 ahash = "0.8.6"
 
 [dev-dependencies]
-sep2_common = { git = "https://github.com/synergy-au/sep2_common.git", rev = "18d4ee0", features = [
+sep2_common = { git = "https://github.com/synergy-au/sep2_common.git", rev = "627e8b9", features = [
   "examples",
   "der",
   "edev",
