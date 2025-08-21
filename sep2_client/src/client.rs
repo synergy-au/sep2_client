@@ -152,7 +152,8 @@ impl TryFrom<SEPResponse> for hyper::Response<Body> {
 
 // async `TryFrom<Response<Body>> for SEPResponse`` implementation
 async fn into_sepresponse(res: hyper::Response<Body>) -> Result<SEPResponse> {
-    match res.status() {
+    let status = res.status();
+    match status {
         // We leave the checking of the location header up to the client
         StatusCode::CREATED => {
             let loc = res
@@ -189,7 +190,12 @@ async fn into_sepresponse(res: hyper::Response<Body>) -> Result<SEPResponse> {
                 .context("Failed to extract expected ALLOW header from Response")?;
             Ok(SEPResponse::MethodNotAllowed(loc))
         }
-        _ => Err(anyhow!("Unexpected HTTP response from server")),
+        _ => {
+            let body = res.body();
+            Err(anyhow!(
+                "Unexpected HTTP response from server status={status:?} body={body:?}"
+            ))
+        }
     }
 }
 
