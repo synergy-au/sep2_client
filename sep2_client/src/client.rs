@@ -345,16 +345,16 @@ impl Client {
         let uri: Uri = format!("{}{}", self.addr, path)
             .parse()
             .context("Failed to parse address")?;
-        log::info!("Client: GET {} from {}", R::name(), uri);
+        log::debug!("Client: GET {} from {}", R::name(), uri);
         let req = Request::builder()
             .method(Method::GET)
             .header(ACCEPT, "application/sep+xml")
             .header(DATE, fmt_http_date(current_time_with_offset().into()))
             .uri(uri)
             .body(Body::default())?;
-        log::debug!("Client: Outgoing HTTP Request: {:?}", req);
+        log::trace!("Client: Outgoing HTTP Request: {:?}", req);
         let res = self.inner.request(req).await?;
-        log::debug!("Client: Incoming HTTP Response: {:?}", res);
+        log::trace!("Client: Incoming HTTP Response: {:?}", res);
         // TODO: Handle moved resources - implement HTTP redirects
         match res.status() {
             StatusCode::OK => (),
@@ -400,15 +400,15 @@ impl Client {
         let uri: Uri = format!("{}{}", self.addr, path)
             .parse()
             .context("Failed to parse address")?;
-        log::info!("Client: DELETE at {}", uri);
+        log::debug!("Client: DELETE at {}", uri);
         let req = Request::builder()
             .method(Method::DELETE)
             .header(DATE, fmt_http_date(current_time_with_offset().into()))
             .uri(uri)
             .body(Body::empty())?;
-        log::debug!("Client: Outgoing HTTP Request: {:?}", req);
+        log::trace!("Client: Outgoing HTTP Request: {:?}", req);
         let res = self.inner.request(req).await?;
-        log::debug!("Client: Incoming HTTP Response: {:?}", res);
+        log::trace!("Client: Incoming HTTP Response: {:?}", res);
         into_sepresponse(res).await
     }
 
@@ -494,7 +494,7 @@ impl Client {
         method: Method,
         time: SEPTime,
     ) -> Result<SEPResponse> {
-        log::info!("POST {} to {}", R::name(), abs_path);
+        log::debug!("POST {} to {}", R::name(), abs_path);
         let rsrce = serialize(resource)?;
         let rsrce_size = rsrce.as_bytes().len();
         let req = Request::builder()
@@ -504,9 +504,9 @@ impl Client {
             .header(DATE, fmt_http_date(time.into()))
             .uri(abs_path)
             .body(Body::from(rsrce))?;
-        log::debug!("Client: Outgoing HTTP Request: {:?}", req);
+        log::trace!("Client: Outgoing HTTP Request: {:?}", req);
         let res = self.inner.request(req).await?;
-        log::debug!("Client: Incoming HTTP Response: {:?}", res);
+        log::trace!("Client: Incoming HTTP Response: {:?}", res);
         into_sepresponse(res).await
     }
 
