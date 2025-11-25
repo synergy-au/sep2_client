@@ -1,5 +1,7 @@
 //! IEEE 2030.5 Client Core Functionality
 
+const PAYLOAD_TARGET: &str = concat!(module_path!(), "::payload");
+
 use anyhow::{anyhow, bail, Context, Result};
 use httpdate::fmt_http_date;
 use hyper::{
@@ -177,6 +179,7 @@ async fn into_sepresponse(res: hyper::Response<Body>) -> Result<SEPResponse> {
                 .ok()
                 .and_then(|b| {
                     let out = String::from_utf8_lossy(&b);
+                    log::trace!(target: PAYLOAD_TARGET, "BadRequest response:\n{}", out);
                     deserialize(&out).ok()
                 }),
         )),
@@ -188,6 +191,7 @@ async fn into_sepresponse(res: hyper::Response<Body>) -> Result<SEPResponse> {
                 .and_then(|h| h.to_str().ok())
                 .map(|r| r.to_string())
                 .context("Failed to extract expected ALLOW header from Response")?;
+            log::error!("response body {:?}", res);
             Ok(SEPResponse::MethodNotAllowed(loc))
         }
         _ => {
@@ -362,6 +366,7 @@ impl Client {
         }
         let body = hyper::body::to_bytes(res.into_body()).await?;
         let xml = String::from_utf8_lossy(&body);
+        log::trace!(target: PAYLOAD_TARGET, "GET {} response:\n{}", path, xml);
         deserialize(&xml)
     }
 
@@ -496,6 +501,7 @@ impl Client {
     ) -> Result<SEPResponse> {
         log::debug!("POST {} to {}", R::name(), abs_path);
         let rsrce = serialize(resource)?;
+        log::trace!(target: PAYLOAD_TARGET, "{} {} request:\n{}", method, abs_path, rsrce);
         let rsrce_size = rsrce.as_bytes().len();
         let req = Request::builder()
             .method(method)
